@@ -1,0 +1,17 @@
+---
+- hosts: all
+  become: true
+  tasks:
+    - name: create the 'cor' user
+      user: name=cor append=yes groups=cor state=present createhome=yes shell=/bin/bash
+
+    - name: allow 'cor' to have passwordless sudo
+      lineinfile:
+        dest: /etc/sudoers
+        line: 'cor ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+
+    - name: set up authorized keys for the cor user
+      authorized_key: user=cor key="{{item}}"
+      with_file:
+        - ~/.ssh/cor-master.pub

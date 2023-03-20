@@ -1,0 +1,30 @@
+---
+# The playbook install the dependencies for the K8S nodes
+# (control-plane and worker nodes)
+
+- hosts: all
+  become: true
+  tasks:
+
+  - name: Add the Kubernetes apt repository
+    ansible.builtin.shell: |
+      curl -fsSLo /etc/apt/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+      echo "deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+      exit 0
+
+  - name: Install kubeadm, kubelet, and kubectl
+    apt:
+      name:
+        - kubeadm=1.26.3-00
+        - kubelet=1.26.3-00
+      state: latest
+      update_cache: true
+
+- hosts: control_plane
+  become: true
+  tasks:
+   - name: install kubectl
+     apt:
+       name: kubectl=1.26.3-00
+       state: present
+       force: yes

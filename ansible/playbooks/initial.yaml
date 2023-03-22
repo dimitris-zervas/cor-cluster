@@ -1,0 +1,25 @@
+---
+- hosts: all
+  become: true
+  vars:
+    ansible_ssh_private_key_file: ~/.ssh/cor-master
+  tasks:
+    - name: create the 'cor' user
+      ansible.builtin.user:
+        name: cor
+        shell: /bin/bash
+        create_home: true
+        append: true
+
+    - name: allow 'cor' to have passwordless sudo
+      lineinfile:
+        dest: /etc/sudoers
+        line: 'cor ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+
+    - name: set up authorized keys for the cor user
+      authorized_key: user=cor key="{{item}}"
+      with_file:
+        - ~/.ssh/cor-master.pub
+
+# TODO: Make the ssh key a variable.

@@ -1,0 +1,45 @@
+---
+- hosts: control_plane
+  become: true
+  vars:
+    ansible_ssh_private_key_file: ~/.ssh/cor-master
+  tasks:
+    - name: initialize the cluster
+      shell: kubeadm init --pod-network-cidr=192.168.0.0/16 >> cluster_initialized.txt
+      args:
+        chdir: $HOME
+        creates: cluster_initialized.txt
+
+    - name: create .kube directory
+      become: true
+      become_user: cor
+      file:
+        path: $HOME/.kube
+        state: directory
+        mode: 0755
+
+    - name: copy admin.conf to user's kube config
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/cor/.kube/config
+        remote_src: yes
+        owner: cor
+
+    - name: install Tigera Calico operator
+      become: true
+      become_user: cor
+      shell: kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/tigera-operator.yaml
+      args:
+        chdir: $HOME
+        creates: calico_operator.txt
+    
+    - name: install Calico custom resources
+      become: true
+      become_user: cor
+      shell: kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/custom-resources.yaml
+      args:
+        chdir: $HOME
+        creates: calico_custom_resources.txt
+
+
+# TODO: Make the ssh key a variable.

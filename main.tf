@@ -110,3 +110,67 @@ resource "local_file" "inventory" {
   })
   filename = "${path.module}/ansible/hosts"
 }
+
+resource "null_resource" "wait_for_sshd" {
+  depends_on = [
+    local_file.inventory
+  ]
+  # Give time for the nodes to start up the sshd
+  provisioner "local-exec" {
+    command = "sleep 30"
+  }
+}
+
+resource "null_resource" "create-cor-user" {
+  depends_on = [
+    null_resource.wait_for_sshd
+  ]
+  provisioner "local-exec" {
+    working_dir = "${path.module}/ansible"
+    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts ./playbooks/initial.yaml"
+  }
+}
+
+resource "null_resource" "install-crio" {
+  depends_on = [
+    null_resource.create-cor-user
+  ]
+  provisioner "local-exec" {
+    working_dir = "${path.module}/ansible"
+    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts ./playbooks/crio.yaml"
+  }
+}
+
+resource "null_resource" "install-k8s-dependencies" {
+
+  depends_on = [
+    null_resource.install-crio
+  ]
+  provisioner "local-exec" {
+    working_dir = "${path.module}/ansible"
+    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts ./playbooks/kubeadm.yaml"
+  }
+}
+
+resource "null_resource" "setup-control-plane" {
+
+  depends_on = [
+    null_resource.install-k8s-dependencies
+  ]
+  provisioner "local-exec" {
+    working_dir = "${path.module}/ansible"
+    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts ./playbooks/control-plane.yaml"
+  }
+}
+
+resource "null_resource" "join-worker-nodes" {
+
+  depends_on = [
+    null_resource.setup-control-plane
+  ]
+  provisioner "local-exec" {
+    working_dir = "${path.module}/ansible"
+    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts ./playbooks/workers.yaml"
+  }
+}
+
